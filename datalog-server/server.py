@@ -1,5 +1,6 @@
 from typing import Any, Dict
 from starlite import Starlite, post, get, Request, BaseRouteHandler, NotAuthorizedException
+from starlite.types import ASGIApp, Scope, Receive, Send
 from starlite.datastructures import State
 from dotenv import load_dotenv
 import os
@@ -23,9 +24,17 @@ def log(db: TinyDB, sensor: str, data: Any, log_time: float):
         "data": data
     })
 
+
+def middleware_factory(app: ASGIApp) -> ASGIApp:
+    async def my_middleware(scope: Scope, receive: Receive, send: Send) -> None:
+        print(scope.items())
+        await app(scope, receive, send)
+
+    return my_middleware
+
 class DataModel(BaseModel):
     logged_at: float
-    data: Dict[str | int, Any]
+    data: Any
 
 @post("/data/{sensor:str}", guards=[guard_key])
 def post_data(sensor: str, data: DataModel, state: State) -> None:
@@ -33,4 +42,4 @@ def post_data(sensor: str, data: DataModel, state: State) -> None:
 
 
 
-app = Starlite(route_handlers=[post_data], on_startup=[start])
+app = Starlite(route_handlers=[post_data], on_startup=[start], middleware=[middleware_factory])

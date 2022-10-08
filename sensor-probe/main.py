@@ -2,8 +2,12 @@ import board
 import adafruit_tca9548a
 import adafruit_sht4x
 from typing import Dict
-from logging import exception
+from logging import exception, error
 import time
+import requests
+import dotenv
+import os
+import json
 
 
 class MultiSensor:
@@ -32,7 +36,26 @@ class MultiSensor:
 
 
 if __name__ == "__main__":
-    ms = MultiSensor({"01": 1, "02": 2})
+    dotenv.load_dotenv()
+    with open(os.environ["SENSORS"], "r") as f:
+        ms = MultiSensor(json.load(f))
+    s_url = os.environ["SERVER_URL"]
+    api_key = os.environ["API_KEY"]
+    s_name = os.environ["SENSOR_NAME"]
+    interval = int(os.environ["SCAN_INTERVAL"])
     while True:
-        print(ms.read_sensors())
-        time.sleep(1)
+        data = ms.read_sensors()
+        print(data)
+        resp = requests.post(s_url + f"/data/{s_name}", data=json.dumps({
+            "logged_at": time.time(),
+            "data": data
+        }), headers={
+            "Authorization": api_key
+        })
+        if resp.status_code > 300:
+            try:
+                error(f"Failed to log data with code {resp.status_code} and data {json.dumps(resp.json())}")
+            except:
+                error(f"Failed to log data with code {resp.status_code} and no data")
+        time.sleep(interval)
+
