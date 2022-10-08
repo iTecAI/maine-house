@@ -1,0 +1,1 @@
+python3 -m uvicorn server:app --reload --host=129.21.50.10 --port=30100
